@@ -26,6 +26,22 @@ let s:is_async = has('nvim')
 let s:job_info = {}
 let s:max_processes = 5
 
+function! s:TryStack(args) abort
+  if executable('stack')
+    return s:system(s:GetPrefix() + a:args)
+  endif
+
+  return s:system(['ghc-mod'] + a:args)
+endfunction
+
+function! s:GetPrefix() abort
+  if executable('stack')
+    return ['stack', '--verbosity', 'silent', 'exec', 'ghc-mod', '--']
+  endif
+
+  return ['ghc-mod']
+endfunction
+
 function! necoghc#boot() abort "{{{
   if exists('s:browse_cache')
     return
@@ -272,7 +288,7 @@ function! s:ghc_mod_caching_browse(mod) abort "{{{
   endif
 
   if has('nvim')
-    let l:id = jobstart(['ghc-mod'] + l:cmd, {
+    let l:id = jobstart(s:GetPrefix() + l:cmd, {
           \ 'on_stdout': function('s:job_handler'),
           \ 'on_stderr': function('s:job_handler'),
           \ 'on_exit': function('s:job_handler'),
@@ -291,7 +307,7 @@ function! s:ghc_mod_caching_browse(mod) abort "{{{
         let shellslash = &shellslash
         set noshellslash
       endif
-      let l:job = job_start(['ghc-mod'] + l:cmd, {
+      let l:job = job_start(s:GetPrefix() + l:cmd, {
             \   'callback': function('s:job_handler_vim'),
             \ })
       let l:id = s:channel2id(job_getchannel(l:job))
@@ -313,6 +329,14 @@ function! s:job_handler_vim(channel, msg) abort "{{{
   call s:job_handler(s:channel2id(a:channel), a:msg, a:channel)
 endfunction"}}}
 function! s:job_handler(id, msg, event) abort "{{{
+  if (a:event == 'stderr')
+    for l:line in a:msg
+      echomsg l:line
+    endfor
+
+    return
+  endif
+
   if !has_key(s:job_info, a:id)
     return
   endif
@@ -387,7 +411,7 @@ endfunction "}}}
 
 function! s:ghc_mod(cmd) abort "{{{
   let l:cmd = ['ghc-mod'] + a:cmd
-  let l:lines = split(s:system(l:cmd), '\r\n\|[\r\n]')
+  let l:lines = split(s:TryStack(a:cmd), '\r\n\|[\r\n]')
 
   let l:warnings = filter(copy(l:lines), "v:val =~# '^Warning:'")
   let l:lines = filter(copy(l:lines), "v:val !~# '^Warning:'")
@@ -420,7 +444,6 @@ function! s:ghc_mod(cmd) abort "{{{
       endfor
       echohl None
     endif
-    return []
   endif
 
   return l:lines
@@ -501,7 +524,7 @@ function! s:dangling_import(n) abort "{{{
 endfunction "}}}
 
 function! necoghc#ghc_mod_version() abort "{{{
-  let l:ret = s:system(['ghc-mod', 'version'])
+  let l:ret = s:TryStack(['version'])
   return matchstr(l:ret, '\cghc-mod\%(.exe\)\?\s\+version\s\+\zs\%(\d\+\.\)*\d\+')
 endfunction "}}}
 
@@ -548,7 +571,7 @@ function! s:get_ghcmod_root() abort "{{{
     try
       lcd `=fnamemodify(bufname('%'), ':p:h')`
       let b:ghcmod_root =
-        \ substitute(s:system(['ghc-mod', 'root']), '\n*$', '', '')
+        \ substitute(s:TryStack(['root']), '\n*$', '', '')
     finally
       lcd `=l:dir`
     endtry

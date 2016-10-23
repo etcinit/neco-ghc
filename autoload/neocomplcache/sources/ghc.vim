@@ -30,10 +30,17 @@ function! s:source.get_complete_words(cur_keyword_pos, cur_keyword_str) abort
 endfunction
 
 function! neocomplcache#sources#ghc#define() abort
-  if !executable('ghc-mod')
-    return {}
+  if executable('stack')
+    if system('stack exec -- ghc-mod --help > /dev/null 2>&1; echo $?') == 0
+      return s:source
+    else
+      return {}
+    endif
+  elseif executable('ghc-mod')
+    return s:source
   endif
-  return s:source
+
+  return {}
 endfunction
 
 " vim: ts=2 sw=2 sts=2 foldmethod=marker

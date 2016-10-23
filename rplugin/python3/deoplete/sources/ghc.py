@@ -21,6 +21,7 @@ class Source(Base):
         self.input_pattern = r'import\s+\w*|[^. \t0-9]\.\w*'
 
         self.__executable_ghc = self.vim.funcs.executable('ghc-mod')
+        self.__executable_stack = self.vim.funcs.executable('stack')
         self.__is_booted = False
 
     def __boot(self):
@@ -34,7 +35,7 @@ class Source(Base):
         self.__boot()
 
     def get_complete_position(self, context):
-        if not self.__executable_ghc:
+        if not self.__executable_ghc and not self.__executable_stack:
             return -1
 
         self.__boot()

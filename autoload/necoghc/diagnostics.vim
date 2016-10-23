@@ -6,16 +6,25 @@ function! necoghc#diagnostics#report() abort
 
   echomsg 'Current filetype:' &l:filetype
 
-  let l:executable = executable('ghc-mod')
-  echomsg 'ghc-mod is executable:' l:executable
-  if !l:executable
-    echomsg '  Your $PATH:' $PATH
+  if executable('stack')
+    if system('stack exec -- ghc-mod --help > /dev/null 2>&1; echo $?') == 0
+      echomsg 'ghc-mod is executable through stack'
+    else
+      echomsg 'ghc-mod missing. Run stack install ghc-mod'
+    endif
+  else
+    let l:executable = executable('ghc-mod')
+    echomsg 'ghc-mod is executable:' l:executable
+    if !l:executable
+      echomsg '  Your $PATH:' $PATH
+    endif
   endif
 
   echomsg 'omnifunc:' &l:omnifunc
-  echomsg 'neocomplete.vim:' exists(':NeoCompleteEnable')
-  echomsg 'neocomplcache.vim:' exists(':NeoComplCacheEnable')
-  echomsg 'YouCompleteMe:' exists(':YcmDebugInfo')
+  echomsg '> deoplete:' exists('g:loaded_deoplete')
+  echomsg '> neocomplete.vim:' exists(':NeoCompleteEnable')
+  echomsg '> neocomplcache.vim:' exists(':NeoComplCacheEnable')
+  echomsg '> YouCompleteMe:' exists(':YcmDebugInfo')
 
   try
     echomsg 'vimproc.vim:' vimproc#version()
